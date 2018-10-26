@@ -1,10 +1,15 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE OverloadedStrings          #-}
 module Populate
     ( run
     ) where
 
 import Data.String (IsString)
 import qualified Data.Text as T
+import qualified Data.Text.IO as T
+import System.Environment (getArgs)
+import System.IO (FilePath)
+import Text.Toml (parseTomlDoc)
 
 
 -- | A URL (wrapper over Text)
@@ -22,7 +27,25 @@ data Source = Source
     , sourceAuthor :: T.Text
     , sourceURL :: URL
     }
+    
+-- | Represents a complete configuration file of sources
+newtype Sources = Sources [Source]
 
 
+-- | The entry point for the application.
 run :: IO ()
-run = putStrLn "someFunc"
+run = do
+    args <- getArgs
+    case args of
+        []    -> putStrLn "Please provide a toml file with a list of sources"
+        (f:_) -> runOn f
+
+
+-- | Runs the program with a given file
+runOn :: FilePath -> IO ()
+runOn file = do
+    contents <- T.readFile file    
+    let parseRes = parseTomlDoc file contents
+    case parseRes of
+        Left err -> print err
+        Right _  -> putStrLn "This is a valid toml file"
