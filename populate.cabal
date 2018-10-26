@@ -22,7 +22,6 @@ library
   exposed-modules:
       Populate
   other-modules:
-      Paths_populate
   hs-source-dirs:
       src
   build-depends:
@@ -35,7 +34,6 @@ library
 executable populate
   main-is: Main.hs
   other-modules:
-      Paths_populate
   hs-source-dirs:
       app
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
@@ -48,7 +46,6 @@ test-suite populate-test
   type: exitcode-stdio-1.0
   main-is: Spec.hs
   other-modules:
-      Paths_populate
   hs-source-dirs:
       test
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
