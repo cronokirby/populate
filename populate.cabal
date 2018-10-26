@@ -21,6 +21,7 @@ source-repository head
 library
   exposed-modules:
       Populate
+    , Populate.Sources
   other-modules:
       Util
   hs-source-dirs:
