@@ -22,6 +22,7 @@ library
   exposed-modules:
       Populate
   other-modules:
+      Util
   hs-source-dirs:
       src
   build-depends:

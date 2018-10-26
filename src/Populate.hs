@@ -13,6 +13,8 @@ import Text.Parsec.Error (ParseError)
 import Text.Toml (parseTomlDoc)
 import Text.Toml.Types
 
+import Util
+
 
 -- | A URL (wrapper over Text)
 newtype URL = URL T.Text deriving (IsString)
@@ -92,15 +94,6 @@ runOn file = do
     case parseRes of
         Left err -> T.putStrLn (prettyProgramError err)
         Right _  -> putStrLn "This is a valid config file"
-
-
--- | Embed the error branch into a larger context
-mapErr :: (e1 -> e2) -> Either e1 a -> Either e2 a
-mapErr f = either (Left . f) (Right . id)
-
--- | Show a value as Text
-textShow :: Show s => s -> T.Text
-textShow = T.pack . show
 
 {- | Attempts to parse text into a valid source
 
