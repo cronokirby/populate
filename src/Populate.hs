@@ -9,7 +9,9 @@ import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import System.Environment (getArgs)
 import System.IO (FilePath)
+import Text.Parsec.Error (ParseError)
 import Text.Toml (parseTomlDoc)
+import Text.Toml.Types
 
 
 -- | A URL (wrapper over Text)
@@ -32,6 +34,47 @@ data Source = Source
 newtype Sources = Sources [Source]
 
 
+-- | Represents the type of error for the program
+data ProgramError 
+    -- | An invalid toml file was provided
+    = BadToml ParseError 
+    -- | The toml file didn't match the expected config
+    | BadConfig [ConfigError]
+
+
+-- | Represents errors generated while trying to match the config
+data ConfigError
+    -- | Invalid or missing name in nth entry
+    = BadSourceName Int
+    -- | Invalid or missing author in nth entry
+    | BadSourceAuthor Int
+    -- | Invalid or missing url in nth entry
+    | BadSourceURL Int 
+
+
+-- | Provides a textual error for the CLI user
+prettyProgramError :: ProgramError -> T.Text
+prettyProgramError (BadToml parseError) =
+    "Invalid toml file:\n" <> T.pack (show parseError)
+prettyProgramError (BadConfig configErrors) = 
+    "Invalid configuration:\n"
+    <> T.intercalate "\n" (map prettyConfigError configErrors)
+  where
+    missingInvalid i t = 
+        "Entry #"
+        <> textShow i
+        <> " must have a " 
+        <> t 
+        <> "key. It is either missing, or not text."
+    prettyConfigError (BadSourceName i) = 
+        missingInvalid i "name"
+    prettyConfigError (BadSourceAuthor i) =
+        missingInvalid i "author"
+    prettyConfigError (BadSourceURL i) =
+        missingInvalid i "url"
+
+
+
 -- | The entry point for the application.
 run :: IO ()
 run = do
@@ -45,7 +88,30 @@ run = do
 runOn :: FilePath -> IO ()
 runOn file = do
     contents <- T.readFile file    
-    let parseRes = parseTomlDoc file contents
+    let parseRes = parseSources contents file
     case parseRes of
-        Left err -> print err
-        Right _  -> putStrLn "This is a valid toml file"
+        Left err -> T.putStrLn (prettyProgramError err)
+        Right _  -> putStrLn "This is a valid config file"
+
+
+-- | Embed the error branch into a larger context
+mapErr :: (e1 -> e2) -> Either e1 a -> Either e2 a
+mapErr f = either (Left . f) (Right . id)
+
+-- | Show a value as Text
+textShow :: Show s => s -> T.Text
+textShow = T.pack . show
+
+{- | Attempts to parse text into a valid source
+
+The filepath is only needed to mention it in the ParseError
+-}
+parseSources :: T.Text -> FilePath -> Either ProgramError Sources
+parseSources contents fileName = do
+    toml <- mapErr BadToml (parseTomlDoc fileName contents)
+    mapErr BadConfig (readToml toml)
+
+-- TODO: implement this
+-- | Attempts to read toml into Sources
+readToml :: Table -> Either [ConfigError] Sources
+readToml _ = Left [] 
