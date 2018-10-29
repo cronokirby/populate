@@ -8,14 +8,18 @@ module Populate.Sources
     , ProgramError(..)
     , prettyProgramError
     , parseSources
+    , downloadSources
     )
 where
 
+import Control.Monad (forM_)
 import Data.Foldable (foldl')
 import qualified Data.HashMap.Lazy as HM
 import Data.String (IsString)
 import qualified Data.Text as T
+import qualified Data.Text.IO as T
 import System.IO (FilePath)
+import System.Process (readProcess)
 import Text.Parsec.Error (ParseError)
 import Text.Toml (parseTomlDoc)
 import Text.Toml.Types
@@ -25,6 +29,11 @@ import Util
 
 -- | A URL (wrapper over Text)
 newtype URL = URL T.Text deriving (Eq, IsString, Show)
+
+-- | Convert a URL into a string
+urlToString :: URL -> String
+urlToString (URL txt) = T.unpack txt
+
 
 {- | Represents the information related to the source of a Song
 
@@ -133,3 +142,17 @@ readToml table = case HM.lookup "sources" table of
         pure addSource
         `bindErrs` trySource i node
         `bindErrs` acc
+
+
+-- | Downloads each source one by one and puts them in a file
+downloadSources :: Sources -> IO ()
+downloadSources (Sources ss) =
+    forM_ ss $ \source -> do
+        let url = urlToString $ sourceURL source
+            nameFormat = T.unpack $ sourceName source <> ".%(ext)s"
+        T.putStrLn $
+            "Downloading: " 
+            <> sourceAuthor source 
+            <> " - " 
+            <> sourceName source
+        readProcess "youtube-dl" [url, "-x", "-o", nameFormat] ""

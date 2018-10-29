@@ -25,4 +25,4 @@ runOn file = do
     let parseRes = parseSources contents file
     case parseRes of
         Left err -> T.putStrLn (prettyProgramError err)
-        Right _  -> putStrLn "This is a valid config file"
+        Right sources -> downloadSources sources
