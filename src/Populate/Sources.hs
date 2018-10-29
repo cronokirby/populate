@@ -56,6 +56,8 @@ data ConfigError
     | BadSourceAuthor Int
     -- | Invalid or missing url in nth entry
     | BadSourceURL Int 
+    -- | The configuration wasn't a top level list of tables
+    | NotArrayOfTables
 
 
 -- | Provides a textual error for the CLI user
@@ -78,6 +80,8 @@ prettyProgramError (BadConfig configErrors) =
         missingInvalid i "author"
     prettyConfigError (BadSourceURL i) =
         missingInvalid i "url"
+    prettyConfigError NotArrayOfTables =
+        "The config file must be an array of [source] tables"
 
 
 {- | Attempts to parse text into a valid source
