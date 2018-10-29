@@ -105,7 +105,6 @@ parseSources contents fileName = do
     toml <- mapErr BadToml (parseTomlDoc fileName contents)
     mapErr BadConfig (readToml toml)
 
--- TODO: implement this
 -- | Attempts to read toml into Sources
 readToml :: Table -> Either [ConfigError] Sources
 readToml table = case HM.lookup "sources" table of
