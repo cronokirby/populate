@@ -4,7 +4,8 @@ module Populate.Sources
     ( URL(..)
     , Source(..)
     , Sources(..)
-    , ProgramError
+    , ConfigError(..)
+    , ProgramError(..)
     , prettyProgramError
     , parseSources
     )
@@ -23,7 +24,7 @@ import Util
 
 
 -- | A URL (wrapper over Text)
-newtype URL = URL T.Text deriving (IsString)
+newtype URL = URL T.Text deriving (Eq, IsString, Show)
 
 {- | Represents the information related to the source of a Song
 
@@ -36,10 +37,10 @@ data Source = Source
     { sourceName :: T.Text
     , sourceAuthor :: T.Text
     , sourceURL :: URL
-    }
+    } deriving (Eq, Show)
     
 -- | Represents a complete configuration file of sources
-newtype Sources = Sources [Source]
+newtype Sources = Sources [Source] deriving (Eq, Show)
 
 -- | Gets all the sources that compose this object
 getSources :: Sources -> [Source]
@@ -55,6 +56,7 @@ data ProgramError
     = BadToml ParseError 
     -- | The toml file didn't match the expected config
     | BadConfig [ConfigError]
+    deriving (Eq, Show)
 
 
 -- | Represents errors generated while trying to match the config
@@ -67,6 +69,7 @@ data ConfigError
     | BadSourceURL Int 
     -- | The configuration wasn't a top level list of tables
     | NotArrayOfTables
+    deriving (Eq, Show)
 
 
 -- | Provides a textual error for the CLI user
@@ -110,21 +113,24 @@ readToml table = case HM.lookup "sources" table of
     Just (VTArray tables) -> snd $ foldl' validate (1, Right (Sources [])) tables
     Just _                -> Left [NotArrayOfTables]
   where
-    checkNode :: ConfigError -> Maybe Node -> Either ConfigError T.Text
-    checkNode err Nothing            = Left err
+    checkNode :: ConfigError -> Maybe Node -> Either [ConfigError] T.Text
+    checkNode err Nothing            = Left [err]
     checkNode _ (Just (VString txt)) = Right txt
-    checkNode err (Just _)           = Left err
-    tryLookup :: T.Text -> ConfigError -> Table -> Either ConfigError T.Text
+    checkNode err (Just _)           = Left [err]
+    tryLookup :: T.Text -> ConfigError -> Table -> Either [ConfigError] T.Text
     tryLookup key err = checkNode err . HM.lookup key
-    trySource :: Int -> Table -> Either ConfigError Source
-    trySource i table = do
-        name <- tryLookup "name" (BadSourceName i) table
-        author <- tryLookup "author" (BadSourceAuthor i) table
-        url <- tryLookup "url" (BadSourceURL i) table
-        return (Source name author (URL url))
-    validate (i, Left errs) node = case trySource i node of
-        Left err -> (i + 1, Left (err : errs))
-        Right _  -> (i + 1, Left errs)
-    validate (i, Right sources) node = case trySource i node of
-        Left err     -> (i + 1, Left [err])
-        Right source -> (i + 1, Right (addSource source sources))
+    bindErrs :: Either [e] (a -> b) -> Either [e] a -> Either [e] b
+    bindErrs (Left errs1) (Left errs2) = 
+        Left (errs1 ++ errs2)
+    bindErrs l r = 
+        l <*> r
+    trySource :: Int -> Table -> Either [ConfigError] Source
+    trySource i table = pure
+        (\name author url -> Source name author (URL url))
+        `bindErrs` tryLookup "name" (BadSourceName i) table
+        `bindErrs` tryLookup "author" (BadSourceAuthor i) table
+        `bindErrs` tryLookup "url" (BadSourceURL i) table
+    validate (i, acc) node = (,) (i + 1) $
+        pure addSource
+        `bindErrs` trySource i node
+        `bindErrs` acc
