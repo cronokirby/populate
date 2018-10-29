@@ -10,6 +10,8 @@ module Populate.Sources
     )
 where
 
+import Data.Foldable (foldl')
+import qualified Data.HashMap.Lazy as HM
 import Data.String (IsString)
 import qualified Data.Text as T
 import System.IO (FilePath)
@@ -39,6 +41,13 @@ data Source = Source
 -- | Represents a complete configuration file of sources
 newtype Sources = Sources [Source]
 
+-- | Gets all the sources that compose this object
+getSources :: Sources -> [Source]
+getSources (Sources ss) = ss
+
+-- | Prepend a source to the sources
+addSource :: Source -> Sources -> Sources
+addSource s (Sources ss) = Sources (s : ss)
 
 -- | Represents the type of error for the program
 data ProgramError 
@@ -73,7 +82,7 @@ prettyProgramError (BadConfig configErrors) =
         <> textShow i
         <> " must have a " 
         <> t 
-        <> "key. It is either missing, or not text."
+        <> " key. It is either missing, or not text."
     prettyConfigError (BadSourceName i) = 
         missingInvalid i "name"
     prettyConfigError (BadSourceAuthor i) =
@@ -96,4 +105,26 @@ parseSources contents fileName = do
 -- TODO: implement this
 -- | Attempts to read toml into Sources
 readToml :: Table -> Either [ConfigError] Sources
-readToml _ = Left [] 
+readToml table = case HM.lookup "sources" table of
+    Nothing               -> Left [NotArrayOfTables]
+    Just (VTArray tables) -> snd $ foldl' validate (1, Right (Sources [])) tables
+    Just _                -> Left [NotArrayOfTables]
+  where
+    checkNode :: ConfigError -> Maybe Node -> Either ConfigError T.Text
+    checkNode err Nothing            = Left err
+    checkNode _ (Just (VString txt)) = Right txt
+    checkNode err (Just _)           = Left err
+    tryLookup :: T.Text -> ConfigError -> Table -> Either ConfigError T.Text
+    tryLookup key err = checkNode err . HM.lookup key
+    trySource :: Int -> Table -> Either ConfigError Source
+    trySource i table = do
+        name <- tryLookup "name" (BadSourceName i) table
+        author <- tryLookup "author" (BadSourceAuthor i) table
+        url <- tryLookup "url" (BadSourceURL i) table
+        return (Source name author (URL url))
+    validate (i, Left errs) node = case trySource i node of
+        Left err -> (i + 1, Left (err : errs))
+        Right _  -> (i + 1, Left errs)
+    validate (i, Right sources) node = case trySource i node of
+        Left err     -> (i + 1, Left [err])
+        Right source -> (i + 1, Right (addSource source sources))
