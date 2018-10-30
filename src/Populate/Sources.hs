@@ -116,7 +116,7 @@ parseSources contents fileName = do
 
 -- | Attempts to read toml into Sources
 readToml :: Table -> Either [ConfigError] Sources
-readToml table = case HM.lookup "sources" table of
+readToml table = case HM.lookup "source" table of
     Nothing               -> Left [NotArrayOfTables]
     Just (VTArray tables) -> snd $ foldl' validate (1, Right (Sources [])) tables
     Just _                -> Left [NotArrayOfTables]
