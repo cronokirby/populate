@@ -45,6 +45,7 @@ to split the album into multiple songs.
 data Source = Source
     { sourceName :: T.Text
     , sourceArtist :: T.Text
+    , sourcePath :: T.Text
     , sourceURL :: URL
     } deriving (Eq, Show)
     
@@ -74,6 +75,8 @@ data ConfigError
     = BadSourceName Int
     -- | Invalid or missing author in nth entry
     | BadSourceArtist Int
+    -- | Invalid or missing path in nth entry
+    | BadSourcePath Int
     -- | Invalid or missing url in nth entry
     | BadSourceURL Int 
     -- | The configuration wasn't a top level list of tables
@@ -99,6 +102,8 @@ prettyProgramError (BadConfig configErrors) =
         missingInvalid i "name"
     prettyConfigError (BadSourceArtist i) =
         missingInvalid i "artist"
+    prettyConfigError (BadSourcePath i) =
+        missingInvalid i "path"
     prettyConfigError (BadSourceURL i) =
         missingInvalid i "url"
     prettyConfigError NotArrayOfTables =
@@ -134,9 +139,10 @@ readToml table = case HM.lookup "source" table of
         l <*> r
     trySource :: Int -> Table -> Either [ConfigError] Source
     trySource i table = pure
-        (\name author url -> Source name author (URL url))
+        (\name author path url -> Source name author path (URL url))
         `bindErrs` tryLookup "name" (BadSourceName i) table
         `bindErrs` tryLookup "artist" (BadSourceArtist i) table
+        `bindErrs` tryLookup "path" (BadSourcePath i) table
         `bindErrs` tryLookup "url" (BadSourceURL i) table
     validate (i, acc) node = (,) (i + 1) $
         pure addSource
@@ -149,7 +155,10 @@ downloadSources :: Sources -> IO ()
 downloadSources (Sources ss) =
     forM_ ss $ \source -> do
         let url = urlToString $ sourceURL source
-            nameFormat = T.unpack $ sourceName source <> ".%(ext)s"
+            nameFormat = T.unpack $ 
+                sourcePath source 
+                <> sourceName source 
+                <> ".%(ext)s"
         T.putStrLn $
             "Downloading: " 
             <> sourceArtist source 
