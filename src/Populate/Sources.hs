@@ -21,7 +21,7 @@ import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import qualified Data.Vector as V
 import Sound.TagLib
-import System.Directory (createDirectoryIfMissing)
+import System.Directory (createDirectoryIfMissing, removeFile)
 import System.IO (FilePath)
 import System.Process (readProcess)
 import Text.Parsec.Error (ParseError)
@@ -231,7 +231,7 @@ splitTimestamps name source timestamps
                 args = baseArgs inputPath (T.unpack time) ++ extraArgs
             readProcess "ffmpeg" args ""
             addMetadata outputPath subName (sourceArtist source) (Just (sourceName source))
-    
+    removeFile (name ++ ".m4a")
   where
     baseArgs inputPath startTime =
         [ "-loglevel", "panic"
