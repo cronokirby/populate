@@ -15,7 +15,7 @@ import qualified Data.Text as T
 
 -- | Maps over the left side of an Either
 mapErr :: (e1 -> e2) -> Either e1 a -> Either e2 a
-mapErr f = either (Left . f) (Right . id)
+mapErr f = either (Left . f) Right
 
 
 -- | Show something as Text
