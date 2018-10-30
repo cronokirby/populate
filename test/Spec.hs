@@ -24,15 +24,15 @@ sourcesSpec = do
             parseShouldBe "[sources]" $
                 Left (BadConfig [NotArrayOfTables])
         it "returns correctly indexed errors for missing fields" $ do
-            parseShouldBe "[[sources]]\nname=\"a\"\nauthor=\"b\"" $
+            parseShouldBe "[[sources]]\nname=\"a\"\nartist=\"b\"" $
                 Left (BadConfig [BadSourceURL 1])
             parseShouldBe "[[sources]]" . Left . BadConfig $
                 [ BadSourceName 1
-                , BadSourceAuthor 1
+                , BadSourceArtist 1
                 , BadSourceURL 1
                 ]
         it "parses valid source files" $ do
-            parseShouldBe "[[sources]]\nname=\"a\"\nauthor=\"b\"\nurl=\"c\"" $ do
+            parseShouldBe "[[sources]]\nname=\"a\"\nartist=\"b\"\nurl=\"c\"" $ do
                 Right (Sources [Source "a" "b" "c"])
   where
     parseShouldBe txt = shouldBe (parseSources txt "")

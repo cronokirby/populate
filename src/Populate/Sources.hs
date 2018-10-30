@@ -44,7 +44,7 @@ to split the album into multiple songs.
 -}
 data Source = Source
     { sourceName :: T.Text
-    , sourceAuthor :: T.Text
+    , sourceArtist :: T.Text
     , sourceURL :: URL
     } deriving (Eq, Show)
     
@@ -73,7 +73,7 @@ data ConfigError
     -- | Invalid or missing name in nth entry
     = BadSourceName Int
     -- | Invalid or missing author in nth entry
-    | BadSourceAuthor Int
+    | BadSourceArtist Int
     -- | Invalid or missing url in nth entry
     | BadSourceURL Int 
     -- | The configuration wasn't a top level list of tables
@@ -97,8 +97,8 @@ prettyProgramError (BadConfig configErrors) =
         <> " key. It is either missing, or not text."
     prettyConfigError (BadSourceName i) = 
         missingInvalid i "name"
-    prettyConfigError (BadSourceAuthor i) =
-        missingInvalid i "author"
+    prettyConfigError (BadSourceArtist i) =
+        missingInvalid i "artist"
     prettyConfigError (BadSourceURL i) =
         missingInvalid i "url"
     prettyConfigError NotArrayOfTables =
@@ -136,7 +136,7 @@ readToml table = case HM.lookup "sources" table of
     trySource i table = pure
         (\name author url -> Source name author (URL url))
         `bindErrs` tryLookup "name" (BadSourceName i) table
-        `bindErrs` tryLookup "author" (BadSourceAuthor i) table
+        `bindErrs` tryLookup "artist" (BadSourceArtist i) table
         `bindErrs` tryLookup "url" (BadSourceURL i) table
     validate (i, acc) node = (,) (i + 1) $
         pure addSource
@@ -152,7 +152,7 @@ downloadSources (Sources ss) =
             nameFormat = T.unpack $ sourceName source <> ".%(ext)s"
         T.putStrLn $
             "Downloading: " 
-            <> sourceAuthor source 
+            <> sourceArtist source 
             <> " - " 
             <> sourceName source
         readProcess "youtube-dl" [url, "-x", "-o", nameFormat] ""
