@@ -20,6 +20,7 @@ import Data.String (IsString)
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import qualified Data.Vector as V
+import System.Directory (createDirectory)
 import System.IO (FilePath)
 import System.Process (readProcess)
 import Text.Parsec.Error (ParseError)
@@ -198,13 +199,38 @@ downloadSources :: Sources -> IO ()
 downloadSources (Sources ss) =
     forM_ ss $ \source -> do
         let url = urlToString $ sourceURL source
-            nameFormat = T.unpack $ 
+            outputPath = T.unpack $ 
                 sourcePath source 
                 <> sourceName source 
-                <> ".m4a"
         T.putStrLn $
             "Downloading: " 
             <> sourceArtist source 
             <> " - " 
             <> sourceName source
-        readProcess "youtube-dl" [url, "-x", "--audio-format", "m4a", "-o", nameFormat] ""
+        readProcess "youtube-dl" [url, "-x", "--audio-format", "m4a", "-o", outputPath ++ ".m4a"] ""
+        splitTimestamps outputPath (sourceStamps source)
+
+-- | Splits a file based on timestamps
+splitTimestamps :: String -> [TimeStamp] -> IO ()
+splitTimestamps name timestamps = do
+    createDirectory name
+    -- The last timestamp is a dummy to let the last segment
+    -- be chopped until the end.
+    forM_ (zip timestamps (tail timestamps ++ [TimeStamp "" ""])) $ 
+        \(TimeStamp time subName, TimeStamp nextTime _) -> do
+            let inputPath = name ++ ".m4a"
+                outputPath = name ++ "/" ++ T.unpack subName ++ ".m4a"
+                extraArgs = case nextTime of
+                    "" -> [outputPath]
+                    n  -> ["-to", T.unpack n, outputPath]
+                args = baseArgs inputPath (T.unpack time) ++ extraArgs
+            readProcess "ffmpeg" args ""
+    
+  where
+    baseArgs inputPath startTime =
+        [ "-loglevel", "panic"
+        , "-y"
+        , "-i", inputPath
+        , "-acodec", "copy"
+        , "-ss", startTime
+        ]
