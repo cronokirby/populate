@@ -21,7 +21,7 @@ import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import qualified Data.Vector as V
 import Sound.TagLib
-import System.Directory (createDirectory)
+import System.Directory (createDirectoryIfMissing)
 import System.IO (FilePath)
 import System.Process (readProcess)
 import Text.Parsec.Error (ParseError)
@@ -218,7 +218,7 @@ splitTimestamps name source timestamps
   | null timestamps =
     addMetadata (name ++ ".m4a") (sourceName source) (sourceArtist source) Nothing
   | otherwise       = do
-    createDirectory name
+    createDirectoryIfMissing True name
     -- The last timestamp is a dummy to let the last segment
     -- be chopped until the end.
     forM_ (zip timestamps (tail timestamps ++ [TimeStamp "" ""])) $ 
