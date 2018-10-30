@@ -3,3 +3,6 @@
   artist = "Susume Hirasawa"
   path = "Susume Hirasawa/"
   url = "https://www.youtube.com/watch?v=_isSnrC2__A"
+  timestamps = ["0:00", "1:00"]
+  namestamps = ["first", "second"]
+  

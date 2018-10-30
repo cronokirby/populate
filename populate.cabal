@@ -27,12 +27,13 @@ library
   hs-source-dirs:
       src
   build-depends:
-      base                 >= 4.7 && < 5
-    , htoml                >= 1.0 && < 1.1
-    , parsec               >= 3.1 && < 3.2
-    , process              >= 1.6 && < 1.7
-    , text                 >= 1.2 && < 1.3
-    , unordered-containers >= 0.2 && < 0.3
+      base                 >= 4.7  && < 5
+    , htoml                >= 1.0  && < 1.1
+    , parsec               >= 3.1  && < 3.2
+    , process              >= 1.6  && < 1.7
+    , text                 >= 1.2  && < 1.3
+    , unordered-containers >= 0.2  && < 0.3
+    , vector               >= 0.12 && < 0.13
   default-language: Haskell2010
 
 executable populate
@@ -57,4 +58,5 @@ test-suite populate-test
       base  >= 4.7 && < 5
     , hspec >= 2.5 && < 2.6
     , populate
+    , text  >= 1.2  && < 1.3
   default-language: Haskell2010

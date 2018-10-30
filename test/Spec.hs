@@ -1,5 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 import Data.Either (isLeft)
+import qualified Data.Text.IO as T
 import Test.Hspec
 
 import Populate.Sources
@@ -32,8 +33,16 @@ sourcesSpec =
                 , BadSourcePath 1
                 , BadSourceURL 1
                 ]
-        it "parses valid source files" $
-            parseShouldBe "[[source]]\nname=\"a\"\nartist=\"b\"\npath=\"c\"\nurl=\"d\"" $
-                Right (Sources [Source "a" "b" "c" "d"])
+        it "parses valid source files" $ do
+            content <- T.readFile "examples/example.toml"
+            parseShouldBe content $
+                Right . Sources $ 
+                    [ Source 
+                      "Gattsu"
+                      "Susume Hirasawa"
+                      "Susume Hirasawa/"
+                      "https://www.youtube.com/watch?v=_isSnrC2__A"
+                      [TimeStamp "0:00" "first", TimeStamp "1:00" "second"]
+                    ]
   where
     parseShouldBe txt = shouldBe (parseSources txt "")

@@ -2,6 +2,7 @@
 {-# LANGUAGE OverloadedStrings          #-}
 module Populate.Sources
     ( URL(..)
+    , TimeStamp(..)
     , Source(..)
     , Sources(..)
     , ConfigError(..)
@@ -18,6 +19,7 @@ import qualified Data.HashMap.Lazy as HM
 import Data.String (IsString)
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
+import qualified Data.Vector as V
 import System.IO (FilePath)
 import System.Process (readProcess)
 import Text.Parsec.Error (ParseError)
@@ -35,6 +37,14 @@ urlToString :: URL -> String
 urlToString (URL txt) = T.unpack txt
 
 
+{- | Represents a timestamp for a sub song
+
+We use text for the time, because it exists as an argument
+to ffmpeg. If the text is nonsense, things will simply blow up
+when ffempg is called.
+-}
+data TimeStamp = TimeStamp T.Text T.Text deriving (Eq, Show)
+
 {- | Represents the information related to the source of a Song
 
 Doesn't represent a song directly, but rather a source that may generate multiple
@@ -47,6 +57,8 @@ data Source = Source
     , sourceArtist :: T.Text
     , sourcePath :: T.Text
     , sourceURL :: URL
+    -- | We use an empty list to represent no timestamps
+    , sourceStamps :: [TimeStamp]
     } deriving (Eq, Show)
     
 -- | Represents a complete configuration file of sources
@@ -79,6 +91,12 @@ data ConfigError
     | BadSourcePath Int
     -- | Invalid or missing url in nth entry
     | BadSourceURL Int 
+    -- | The entry has a timestamps or namestamps entry, but not the other
+    | MismatchedTimeStamps Int
+    -- | The timestamp arrays have different lengths
+    | BadTimeStampLengths Int
+    -- | The timestamp arrays aren't text
+    | BadTimeStampType Int
     -- | The configuration wasn't a top level list of tables
     | NotArrayOfTables
     deriving (Eq, Show)
@@ -106,6 +124,12 @@ prettyProgramError (BadConfig configErrors) =
         missingInvalid i "path"
     prettyConfigError (BadSourceURL i) =
         missingInvalid i "url"
+    prettyConfigError (MismatchedTimeStamps i) =
+        "Entry #" <> textShow i <> " has a namestamps array or a timestamps array, but not both."
+    prettyConfigError (BadTimeStampLengths i) =
+        "Entry #" <> textShow i <> " has namestamps and timestamps of differing lengths."
+    prettyConfigError (BadTimeStampType i) =
+        "Entry #" <> textShow i <> " has timestamps that aren't text."
     prettyConfigError NotArrayOfTables =
         "The config file must be an array of [source] tables"
 
@@ -137,13 +161,32 @@ readToml table = case HM.lookup "source" table of
         Left (errs1 ++ errs2)
     bindErrs l r = 
         l <*> r
+    tryTimeStamps :: Int -> Table -> Either [ConfigError] [TimeStamp]
+    tryTimeStamps i table = 
+        case (HM.lookup "timestamps" table, HM.lookup "namestamps" table) of
+            (Nothing, Nothing)                         -> Right []
+            (Just (VArray times), Just (VArray names)) ->
+                if V.length times == V.length names
+                    then validateNodes (V.zip times names)
+                    else Left [BadTimeStampLengths i]
+            _                                          -> Left [MismatchedTimeStamps i]
+      where
+        validateNodes nodes
+            | V.null nodes = Right []
+            | otherwise    = case V.head nodes of
+                -- Arrays of nodes in TOML are homomorphic
+                (VString _, VString _) -> 
+                    Right . V.toList . fmap (\(VString t, VString n) -> TimeStamp t n) $ nodes
+                _                      -> Left [BadTimeStampType i]
     trySource :: Int -> Table -> Either [ConfigError] Source
     trySource i table = pure
-        (\name author path url -> Source name author path (URL url))
+        (\name author path url timestamps -> 
+            Source name author path (URL url) timestamps)
         `bindErrs` tryLookup "name" (BadSourceName i) table
         `bindErrs` tryLookup "artist" (BadSourceArtist i) table
         `bindErrs` tryLookup "path" (BadSourcePath i) table
         `bindErrs` tryLookup "url" (BadSourceURL i) table
+        `bindErrs` tryTimeStamps i table
     validate (i, acc) node = (,) (i + 1) $
         pure addSource
         `bindErrs` trySource i node
@@ -158,10 +201,10 @@ downloadSources (Sources ss) =
             nameFormat = T.unpack $ 
                 sourcePath source 
                 <> sourceName source 
-                <> ".%(ext)s"
+                <> ".m4a"
         T.putStrLn $
             "Downloading: " 
             <> sourceArtist source 
             <> " - " 
             <> sourceName source
-        readProcess "youtube-dl" [url, "-x", "-o", nameFormat] ""
+        readProcess "youtube-dl" [url, "-x", "--audio-format", "m4a", "-o", nameFormat] ""
