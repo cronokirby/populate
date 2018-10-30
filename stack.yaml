@@ -2,3 +2,6 @@ resolver: lts-12.14
 
 packages:
 - .
+
+extra-deps:
+- taglib-0.1.1

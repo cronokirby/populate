@@ -20,6 +20,7 @@ import Data.String (IsString)
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import qualified Data.Vector as V
+import Sound.TagLib
 import System.Directory (createDirectory)
 import System.IO (FilePath)
 import System.Process (readProcess)
@@ -208,11 +209,15 @@ downloadSources (Sources ss) =
             <> " - " 
             <> sourceName source
         readProcess "youtube-dl" [url, "-x", "--audio-format", "m4a", "-o", outputPath ++ ".m4a"] ""
-        splitTimestamps outputPath (sourceStamps source)
+        -- this will add metadata even if no timestamps exist
+        splitTimestamps outputPath source (sourceStamps source)
 
--- | Splits a file based on timestamps
-splitTimestamps :: String -> [TimeStamp] -> IO ()
-splitTimestamps name timestamps = do
+-- | Splits a file based on timestamps, adding metadata
+splitTimestamps :: String -> Source -> [TimeStamp] -> IO ()
+splitTimestamps name source timestamps
+  | null timestamps =
+    addMetadata (name ++ ".m4a") (sourceName source) (sourceArtist source) Nothing
+  | otherwise       = do
     createDirectory name
     -- The last timestamp is a dummy to let the last segment
     -- be chopped until the end.
@@ -225,6 +230,7 @@ splitTimestamps name timestamps = do
                     n  -> ["-to", T.unpack n, outputPath]
                 args = baseArgs inputPath (T.unpack time) ++ extraArgs
             readProcess "ffmpeg" args ""
+            addMetadata outputPath subName (sourceArtist source) (Just (sourceName source))
     
   where
     baseArgs inputPath startTime =
@@ -234,3 +240,22 @@ splitTimestamps name timestamps = do
         , "-acodec", "copy"
         , "-ss", startTime
         ]
+
+
+-- | Adds metadata to an audio file
+addMetadata :: FilePath -> T.Text -> T.Text -> Maybe T.Text -> IO ()
+addMetadata path title artist album = do
+    mFile <- open path
+    whenJust getTag mFile
+  where
+    whenJust :: (a -> IO ()) -> Maybe a -> IO ()
+    whenJust = maybe (return ())
+    getTag file = do
+        mTag <- tag file
+        whenJust writeTag mTag
+        save file
+        return ()
+    writeTag t = do
+        setTitle t (T.unpack title)
+        setArtist t (T.unpack artist)
+        whenJust (setAlbum t . T.unpack) album
