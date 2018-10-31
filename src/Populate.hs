@@ -36,5 +36,5 @@ runOn (file, overwrite) = do
     contents <- T.readFile file    
     let parseRes = parseSources contents file
     case parseRes of
-        Left err -> T.putStrLn (prettyProgramError err)
+        Left err      -> T.putStrLn (prettyProgramError err)
         Right sources -> downloadSources overwrite sources

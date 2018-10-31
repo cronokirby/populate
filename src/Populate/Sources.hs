@@ -215,7 +215,7 @@ downloadSources overwrite (Sources ss) =
     formatSourceName source =
         sourceArtist source <> " - " <> sourceName source
     download source = do
-        let url = urlToString $ sourceURL source
+        let url        = urlToString $ sourceURL source
             outputPath = T.unpack $ 
                 sourcePath source 
                 <> sourceName source 
@@ -246,12 +246,12 @@ splitTimestamps name source timestamps
     -- be chopped until the end.
     forM_ (zip timestamps (tail timestamps ++ [TimeStamp "" ""])) $ 
         \(TimeStamp time subName, TimeStamp nextTime _) -> do
-            let inputPath = name ++ ".m4a"
+            let inputPath  = name ++ ".m4a"
                 outputPath = name ++ "/" ++ T.unpack subName ++ ".m4a"
-                extraArgs = case nextTime of
+                extraArgs  = case nextTime of
                     "" -> [outputPath]
                     n  -> ["-to", T.unpack n, outputPath]
-                args = baseArgs inputPath (T.unpack time) ++ extraArgs
+                args       = baseArgs inputPath (T.unpack time) ++ extraArgs
             readProcess "ffmpeg" args ""
             addMetadata outputPath subName (sourceArtist source) (Just (sourceName source))
     removeFile (name ++ ".m4a")
