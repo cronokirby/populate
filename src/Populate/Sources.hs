@@ -200,16 +200,18 @@ readToml table = case HM.lookup "source" table of
 
 
 -- | Downloads each source one by one and puts them in a file
-downloadSources :: Sources -> IO ()
-downloadSources (Sources ss) =
-    forM_ ss $ \source -> do
+downloadSources :: Bool -> Sources -> IO ()
+downloadSources overwrite (Sources ss) =
+    let action = if overwrite then download else check
+    in forM_ ss action
+  where
+    check source = do
         let stringPath = T.unpack (sourcePath source <> sourceName source)
         fileMade <- doesFileExist (stringPath ++ ".m4a")
         dirMade  <- doesDirectoryExist stringPath
         if fileMade || dirMade
             then T.putStrLn ("Skipping: " <> formatSourceName source <> ". Already downloaded")
             else download source
-  where
     formatSourceName source =
         sourceArtist source <> " - " <> sourceName source
     download source = do
