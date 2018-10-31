@@ -21,7 +21,11 @@ import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import qualified Data.Vector as V
 import Sound.TagLib
-import System.Directory (createDirectoryIfMissing, removeFile)
+import System.Directory ( createDirectoryIfMissing
+                        , doesDirectoryExist
+                        , doesFileExist
+                        , removeFile
+                        )
 import System.IO (FilePath)
 import System.Process (readProcess)
 import Text.Parsec.Error (ParseError)
@@ -199,6 +203,16 @@ readToml table = case HM.lookup "source" table of
 downloadSources :: Sources -> IO ()
 downloadSources (Sources ss) =
     forM_ ss $ \source -> do
+        let stringPath = T.unpack (sourcePath source <> sourceName source)
+        fileMade <- doesFileExist (stringPath ++ ".m4a")
+        dirMade  <- doesDirectoryExist stringPath
+        if fileMade || dirMade
+            then T.putStrLn ("Skipping: " <> formatSourceName source <> ". Already downloaded")
+            else download source
+  where
+    formatSourceName source =
+        sourceArtist source <> " - " <> sourceName source
+    download source = do
         let url = urlToString $ sourceURL source
             outputPath = T.unpack $ 
                 sourcePath source 
@@ -208,9 +222,16 @@ downloadSources (Sources ss) =
             <> sourceArtist source 
             <> " - " 
             <> sourceName source
-        readProcess "youtube-dl" [url, "-x", "--audio-format", "m4a", "-o", outputPath ++ ".m4a"] ""
+        readProcess "youtube-dl" 
+            [ url
+            , "-x"
+            , "--audio-format", "m4a"
+            , "-o", outputPath ++ ".m4a"
+            ]
+            ""
         -- this will add metadata even if no timestamps exist
         splitTimestamps outputPath source (sourceStamps source)
+
 
 -- | Splits a file based on timestamps, adding metadata
 splitTimestamps :: String -> Source -> [TimeStamp] -> IO ()
