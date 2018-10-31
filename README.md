@@ -43,7 +43,12 @@ stack install
 
 ## Usage
 ```
-populate toml-file
+Usage: populate FILE [-w|--overwrite]
+  Populate based on the songs in FILE
+
+Available options:
+  -w,--overwrite           Whether to overwrite cached files
+  -h,--help                Show this help text
 ```
 
 For examples on what this file should look like, check out the `examples` directory.
