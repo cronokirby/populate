@@ -1,17 +1,24 @@
 let
   pkgs = import <nixpkgs> {};
   drv =
-    { mkDerivation, base, hspec, htoml
-    , taglib, unordered-containers, vector, stdenv
+    { mkDerivation, base, directory, hspec, htoml, optparse-applicative
+    , parsec, process, stdenv, taglib, text, unordered-containers
+    , vector
     }:
     mkDerivation {
-      pname = "populate-drv";
-      version = "1.0.0";
+      pname = "populate";
+      version = "0.1.0.0";
       src = ./.;
-      isLibrary = false;
+      isLibrary = true;
       isExecutable = true;
-      executableHaskellDepends = [ base hspec htoml taglib unordered-containers vector ];
-      license = stdenv.lib.licenses.bsd3;
+      libraryHaskellDepends = [
+        base directory htoml optparse-applicative parsec process taglib
+        text unordered-containers vector
+      ];
+      executableHaskellDepends = [ base ];
+      testHaskellDepends = [ base hspec text ];
+      homepage = "https://github.com/cronokirby/populate#readme";
+      license = stdenv.lib.licenses.mit;
     };
   executable = pkgs.haskellPackages.callPackage drv {};
   populate = pkgs.runCommand "populate" { buildInputs = [ pkgs.makeWrapper ]; } ''
