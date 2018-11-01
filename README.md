@@ -26,10 +26,12 @@ it into the songs that compose it in a certain directory.
 The app takes a bunch of sources like these and downloads and unpacks them all.
 
 ## Building
+
+### With Stack Installed on System
 This program relies on having the cli applications `youtube-dl` and `ffmpeg` available.
 `taglib_c` is also needed for adding metadata to the audio files.
 On my system (ubuntu) acquiring these depencies looks like this:
-```
+```bash
 sudo apt-get install ffmpeg
 sudo apt-get install youtube-dl
 sudo apt-get install libtagc0-dev
@@ -37,8 +39,15 @@ sudo apt-get install libtagc0-dev
 Feel free to submit corresponding instructions for your platform :)
 
 With stack, building and installing the program looks like this:
-```
+```bash
 stack install
+```
+
+### With Nix
+Assuming you have a nix installation in your system, building and running the project
+is done like the following:
+```bash
+$(nix-build default.nix)/bin/populate mysrc.toml
 ```
 
 ## Usage
