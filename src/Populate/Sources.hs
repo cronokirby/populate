@@ -15,6 +15,7 @@ where
 
 import Control.Monad (forM_)
 import Data.Foldable (foldl')
+import Data.Semigroup ((<>))
 import qualified Data.HashMap.Lazy as HM
 import Data.String (IsString)
 import qualified Data.Text as T

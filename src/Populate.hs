@@ -2,6 +2,7 @@ module Populate
     ( run
     ) where
 
+import Data.Semigroup ((<>))
 import qualified Data.Text.IO as T
 import Options.Applicative
 import System.Environment (getArgs)
