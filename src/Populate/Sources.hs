@@ -232,6 +232,19 @@ downloadSources overwrite (Sources ss) =
             , "-o", outputPath ++ ".m4a"
             ]
             ""
+        readProcess "ffmpeg"
+            [ "-i", outputPath ++ ".m4a"
+            , "-loglevel", "panic"
+            , "-y"
+            , "-vn"
+            , "-ar", "44100"
+            , "-ac", "2"
+            , "-ab", "192k"
+            , "-f", "mp3"
+            , outputPath ++ ".mp3"
+            ]
+            ""
+        removeFile (outputPath ++ ".m4a")
         -- this will add metadata even if no timestamps exist
         splitTimestamps outputPath source (sourceStamps source)
 
@@ -240,22 +253,22 @@ downloadSources overwrite (Sources ss) =
 splitTimestamps :: String -> Source -> [TimeStamp] -> IO ()
 splitTimestamps name source timestamps
   | null timestamps =
-    addMetadata (name ++ ".m4a") (sourceName source) (sourceArtist source) Nothing
+    addMetadata (name ++ ".mp3") (sourceName source) (sourceArtist source) Nothing
   | otherwise       = do
     createDirectoryIfMissing True name
     -- The last timestamp is a dummy to let the last segment
     -- be chopped until the end.
     forM_ (zip timestamps (tail timestamps ++ [TimeStamp "" ""])) $ 
         \(TimeStamp time subName, TimeStamp nextTime _) -> do
-            let inputPath  = name ++ ".m4a"
-                outputPath = name ++ "/" ++ T.unpack subName ++ ".m4a"
+            let inputPath  = name ++ ".mp3"
+                outputPath = name ++ "/" ++ T.unpack subName ++ ".mp3"
                 extraArgs  = case nextTime of
                     "" -> [outputPath]
                     n  -> ["-to", T.unpack n, outputPath]
                 args       = baseArgs inputPath (T.unpack time) ++ extraArgs
             readProcess "ffmpeg" args ""
             addMetadata outputPath subName (sourceArtist source) (Just (sourceName source))
-    removeFile (name ++ ".m4a")
+    removeFile (name ++ ".mp3")
   where
     baseArgs inputPath startTime =
         [ "-loglevel", "panic"
