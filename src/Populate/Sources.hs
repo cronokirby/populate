@@ -253,7 +253,7 @@ downloadSources overwrite (Sources ss) =
 splitTimestamps :: String -> Source -> [TimeStamp] -> IO ()
 splitTimestamps name source timestamps
   | null timestamps =
-    addMetadata (name ++ ".mp3") (sourceName source) (sourceArtist source) Nothing
+    addMetadata (name ++ ".mp3") 0 (sourceName source) (sourceArtist source) Nothing
   | otherwise       = do
     createDirectoryIfMissing True name
     -- The last timestamp is a dummy to let the last segment
@@ -295,4 +295,4 @@ addMetadata path trck title artist album = do
     writeTag t = do
         setTitle t (T.unpack title)
         setArtist t (T.unpack artist)
-        setTrack trck
+        setTrack t trck
