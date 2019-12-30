@@ -228,6 +228,7 @@ downloadSources overwrite (Sources ss) =
         readProcess "youtube-dl"
             [ url
             , "-x"
+            , "--write-thumbnail"
             , "--audio-format", "m4a"
             , "-o", outputPath ++ ".m4a"
             ]
@@ -240,6 +241,7 @@ downloadSources overwrite (Sources ss) =
             , "-ar", "44100"
             , "-ac", "2"
             , "-ab", "192k"
+            , "-id3v2_version", "3"
             , "-f", "mp3"
             , outputPath ++ ".mp3"
             ]
@@ -253,12 +255,12 @@ downloadSources overwrite (Sources ss) =
 splitTimestamps :: String -> Source -> [TimeStamp] -> IO ()
 splitTimestamps name source timestamps
   | null timestamps =
-    addMetadata (name ++ ".mp3") 0 (sourceName source) (sourceArtist source) Nothing
+    addMetadata (name ++ ".mp3") 1 (sourceName source) (sourceArtist source) Nothing
   | otherwise       = do
     createDirectoryIfMissing True name
     -- The last timestamp is a dummy to let the last segment
     -- be chopped until the end.
-    forM_ (zip [0..] (zip timestamps (tail timestamps ++ [TimeStamp "" ""]))) $
+    forM_ (zip [1..] (zip timestamps (tail timestamps ++ [TimeStamp "" ""]))) $
         \(i, (TimeStamp time subName, TimeStamp nextTime _)) -> do
             let inputPath  = name ++ ".mp3"
                 outputPath = name ++ "/" ++ T.unpack subName ++ ".mp3"
@@ -275,6 +277,7 @@ splitTimestamps name source timestamps
         , "-y"
         , "-i", inputPath
         , "-acodec", "copy"
+        , "-id3v2_version", "3"
         , "-ss", startTime
         ]
 
@@ -295,4 +298,5 @@ addMetadata path trck title artist album = do
     writeTag t = do
         setTitle t (T.unpack title)
         setArtist t (T.unpack artist)
+        setAlbum t (T.unpack album)
         setTrack t trck
