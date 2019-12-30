@@ -67,7 +67,7 @@ data Source = Source
     -- | We use an empty list to represent no timestamps
     , sourceStamps :: [TimeStamp]
     } deriving (Eq, Show)
-    
+
 -- | Represents a complete configuration file of sources
 newtype Sources = Sources [Source] deriving (Eq, Show)
 
@@ -80,9 +80,9 @@ addSource :: Source -> Sources -> Sources
 addSource s (Sources ss) = Sources (s : ss)
 
 -- | Represents the type of error for the program
-data ProgramError 
+data ProgramError
     -- | An invalid toml file was provided
-    = BadToml ParseError 
+    = BadToml ParseError
     -- | The toml file didn't match the expected config
     | BadConfig [ConfigError]
     deriving (Eq, Show)
@@ -97,7 +97,7 @@ data ConfigError
     -- | Invalid or missing path in nth entry
     | BadSourcePath Int
     -- | Invalid or missing url in nth entry
-    | BadSourceURL Int 
+    | BadSourceURL Int
     -- | The entry has a timestamps or namestamps entry, but not the other
     | MismatchedTimeStamps Int
     -- | The timestamp arrays have different lengths
@@ -113,17 +113,17 @@ data ConfigError
 prettyProgramError :: ProgramError -> T.Text
 prettyProgramError (BadToml parseError) =
     "Invalid toml file:\n" <> T.pack (show parseError)
-prettyProgramError (BadConfig configErrors) = 
+prettyProgramError (BadConfig configErrors) =
     "Invalid configuration:\n"
     <> T.intercalate "\n" (map prettyConfigError configErrors)
   where
-    missingInvalid i t = 
+    missingInvalid i t =
         "Entry #"
         <> textShow i
-        <> " must have a " 
-        <> t 
+        <> " must have a "
+        <> t
         <> " key. It is either missing, or not text."
-    prettyConfigError (BadSourceName i) = 
+    prettyConfigError (BadSourceName i) =
         missingInvalid i "name"
     prettyConfigError (BadSourceArtist i) =
         missingInvalid i "artist"
@@ -164,12 +164,12 @@ readToml table = case HM.lookup "source" table of
     tryLookup :: T.Text -> ConfigError -> Table -> Either [ConfigError] T.Text
     tryLookup key err = checkNode err . HM.lookup key
     bindErrs :: Either [e] (a -> b) -> Either [e] a -> Either [e] b
-    bindErrs (Left errs1) (Left errs2) = 
+    bindErrs (Left errs1) (Left errs2) =
         Left (errs1 ++ errs2)
-    bindErrs l r = 
+    bindErrs l r =
         l <*> r
     tryTimeStamps :: Int -> Table -> Either [ConfigError] [TimeStamp]
-    tryTimeStamps i table = 
+    tryTimeStamps i table =
         case (HM.lookup "timestamps" table, HM.lookup "namestamps" table) of
             (Nothing, Nothing)                         -> Right []
             (Just (VArray times), Just (VArray names)) ->
@@ -182,12 +182,12 @@ readToml table = case HM.lookup "source" table of
             | V.null nodes = Right []
             | otherwise    = case V.head nodes of
                 -- Arrays of nodes in TOML are homomorphic
-                (VString _, VString _) -> 
+                (VString _, VString _) ->
                     Right . V.toList . fmap (\(VString t, VString n) -> TimeStamp t n) $ nodes
                 _                      -> Left [BadTimeStampType i]
     trySource :: Int -> Table -> Either [ConfigError] Source
     trySource i table = pure
-        (\name author path url timestamps -> 
+        (\name author path url timestamps ->
             Source name author path (URL url) timestamps)
         `bindErrs` tryLookup "name" (BadSourceName i) table
         `bindErrs` tryLookup "artist" (BadSourceArtist i) table
@@ -217,15 +217,15 @@ downloadSources overwrite (Sources ss) =
         sourceArtist source <> " - " <> sourceName source
     download source = do
         let url        = urlToString $ sourceURL source
-            outputPath = T.unpack $ 
-                sourcePath source 
-                <> sourceName source 
+            outputPath = T.unpack $
+                sourcePath source
+                <> sourceName source
         T.putStrLn $
-            "Downloading: " 
-            <> sourceArtist source 
-            <> " - " 
+            "Downloading: "
+            <> sourceArtist source
+            <> " - "
             <> sourceName source
-        readProcess "youtube-dl" 
+        readProcess "youtube-dl"
             [ url
             , "-x"
             , "--audio-format", "m4a"
@@ -258,8 +258,8 @@ splitTimestamps name source timestamps
     createDirectoryIfMissing True name
     -- The last timestamp is a dummy to let the last segment
     -- be chopped until the end.
-    forM_ (zip timestamps (tail timestamps ++ [TimeStamp "" ""])) $ 
-        \(TimeStamp time subName, TimeStamp nextTime _) -> do
+    forM_ (zip [0..] (zip timestamps (tail timestamps ++ [TimeStamp "" ""]))) $
+        \(i, (TimeStamp time subName, TimeStamp nextTime _)) -> do
             let inputPath  = name ++ ".mp3"
                 outputPath = name ++ "/" ++ T.unpack subName ++ ".mp3"
                 extraArgs  = case nextTime of
@@ -267,7 +267,7 @@ splitTimestamps name source timestamps
                     n  -> ["-to", T.unpack n, outputPath]
                 args       = baseArgs inputPath (T.unpack time) ++ extraArgs
             readProcess "ffmpeg" args ""
-            addMetadata outputPath subName (sourceArtist source) (Just (sourceName source))
+            addMetadata outputPath i subName (sourceArtist source) (Just (sourceName source))
     removeFile (name ++ ".mp3")
   where
     baseArgs inputPath startTime =
@@ -280,8 +280,8 @@ splitTimestamps name source timestamps
 
 
 -- | Adds metadata to an audio file
-addMetadata :: FilePath -> T.Text -> T.Text -> Maybe T.Text -> IO ()
-addMetadata path title artist album = do
+addMetadata :: FilePath -> Integer -> T.Text -> T.Text -> Maybe T.Text -> IO ()
+addMetadata path trck title artist album = do
     mFile <- open path
     whenJust getTag mFile
   where
@@ -295,4 +295,4 @@ addMetadata path title artist album = do
     writeTag t = do
         setTitle t (T.unpack title)
         setArtist t (T.unpack artist)
-        whenJust (setAlbum t . T.unpack) album
+        setTrack trck
