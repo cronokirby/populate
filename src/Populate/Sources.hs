@@ -298,5 +298,8 @@ addMetadata path trck title artist album = do
     writeTag t = do
         setTitle t (T.unpack title)
         setArtist t (T.unpack artist)
-        setAlbum t (T.unpack album)
+        case album of
+          Just a ->
+            setAlbum t (T.unpack a)
+          Nothing -> return ()
         setTrack t trck
